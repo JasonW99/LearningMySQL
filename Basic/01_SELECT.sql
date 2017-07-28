@@ -2,7 +2,7 @@
 SELECT 
 	year, 
 	montth,
-    west
+	west
 FROM tut.us_housing_units
   
 -- 02 select all ------------------------------------------
