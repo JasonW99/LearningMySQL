@@ -20,12 +20,12 @@ FROM testDB
 -----------------------------------------------------------
 SELECT 
 	year AS "Year",
-    month AS "Month",
-    month_name AS "Month Name",
-    west AS "West",
-    midwest AS "Midwest",
-    south AS "South",
-    northeast AS "Northeast"
+	month AS "Month",
+	month_name AS "Month Name",
+	west AS "West",
+	midwest AS "Midwest",
+	south AS "South",
+	northeast AS "Northeast"
 FROM testDB
 
 
