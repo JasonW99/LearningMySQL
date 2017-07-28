@@ -6,17 +6,17 @@ SELECT
 FROM tut.us_housing_units
   
 -- 02 select all ------------------------------------------
-SELECT * FROM tut.us_housing_units
+SELECT * FROM testDB
 
 -- 03 change column names ---------------------------------
 SELECT 
 	west AS "West Region"
-FROM tut.us_housing_units
+FROM testDB
 -----------------------------------------------------------
 SELECT 
 	west AS "West Region"
 	south AS "South Region"
-FROM tut.us_housing_units
+FROM testDB
 -----------------------------------------------------------
 SELECT 
 	year AS "Year",
@@ -26,7 +26,7 @@ SELECT
     midwest AS "Midwest",
     south AS "South",
     northeast AS "Northeast"
-FROM tutorial.us_housing_units
+FROM testDB
 
 
 
