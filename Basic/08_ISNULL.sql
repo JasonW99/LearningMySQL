@@ -1,0 +1,3 @@
+SELECT *
+FROM testDB
+WHERE name IS NULL
