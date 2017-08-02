@@ -322,4 +322,59 @@ week_beginning         incidents
 ... ...
 
 */
+-----------------------------------------------------------------------------------------------------------------------------------------
+/*
+You can instruct your query to pull the local date and time at the time the query is run using any number of functions. 
+Interestingly, you can run them without a FROM clause
+*/
+SELECT 
+	CURRENT_DATE AS date,
+    CURRENT_TIME AS time,
+    CURRENT_TIMESTAMP AS timestamp,
+    LOCALTIME AS localtime,
+    LOCALTIMESTAMP AS localtimestamp,
+    NOW() AS now
+
+/*
+date             time             timestamp                           localtime              localtimestamp                   now
+2017-08-02	     18:22:20	      2017-08-02 18:22:20                 18:22:20               2017-08-02 18:22:20              2017-08-02 18:22:20
+*/
+
+------------------You can make a time appear in a different time zone using AT TIME ZONE:---------------------------------------------------
+SELECT 
+	CURRENT_TIME AS time,
+    CURRENT_TIME AT TIME ZONE 'PST' AS time_pst
+/*
+link for the time zone
+https://www.postgresql.org/docs/7.2/static/timezones.html
+*/
+
+SELECT 
+	case_id,
+    cleaned_event_date,
+    NOW() AT TIME ZONE 'PST' AS now,
+    NOW() AT TIME ZONE 'PST' - cleaned_event_date AS time_ago 
+FROM testDB
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
