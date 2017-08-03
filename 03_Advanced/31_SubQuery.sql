@@ -27,3 +27,97 @@ FROM (
 GROUP BY 1
 ORDER BY 2 DESC
 
+-----------------------------------------------------------------------------------------
+SELECT *
+FROM testDB
+WHERE date = (SELECT MIN(date) 
+			  FROM testDB
+			 )
+
+-----------------------------------------------------------------------------------------
+SELECT *
+FROM testDB
+WHERE date IN (SELECT date
+			   FROM testDB 
+			   ORDER BY date
+			   LIMIT 5
+			  )
+
+---------------- equivalently, we can write ----------------------------------------------
+SELECT *
+FROM testDB test 
+JOIN (
+	SELECT date 
+ 	FROM testDB 
+ 	ORDER BY date
+ 	LIMIT 5
+ 	) sub
+ON sub.date = test.date
+
+------------------------------------------------------------------------------------------
+SELECT test.*
+	sub.tot_case as total_num_case
+FROM testDB test 
+JOIN (
+	SELECT 
+		date,
+		COUNT(case_id) as tot_case
+	FROM testDB
+	GROUP BY date
+) sub
+ON test.date = sub.date
+ORDER BY total_num_case DESC, time
+
+------------------------------------------------------------------------------------------
+SELECT test.*
+	sub.tot_num_case_in_category
+FROM testDB test 
+JOIN (
+	SELECT 
+		category,
+		COUNT(case_id) AS tot_num_case_in_category
+	FROM testDB
+	GROUP BY 1
+	ORDER BY 2
+	LIMIT 3
+) sub
+ON test.category = sub.category
+
+-----------------------------------------------------------------------------------------
+/*
+Imagine you’d like to aggregate all of the 
+product sold by seller bought by buyer each month. 
+*/
+SELECT 
+	COALESCE(seller.date, buyer.date) AS deal_date
+	seller.amount,
+	buyer.amount
+FROM (
+	SELECT 
+		date,
+		COUNT(*) AS amount
+	FROM testDB_seller
+	GROUP BY 1
+	) seller
+FULL JOIN (
+	SELECT 
+		date,
+		COUNT(*) AS amount
+	FROM testDB_buyer
+	GROUP BY 1
+	) buyer
+ON seller.date = buyer.date
+ORDER BY 1 DESC
+/*
+Note: We used a FULL JOIN above just in case one table had observations in a month 
+that the other table didn’t. 
+We also used COALESCE to display months when the seller subquery didn’t have month entries 
+(presumably no seller occurred in those months). 
+*/
+
+
+
+
+
+
+

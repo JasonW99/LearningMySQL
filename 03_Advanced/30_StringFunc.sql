@@ -356,8 +356,18 @@ SELECT
     NOW() AT TIME ZONE 'PST' - cleaned_event_date AS time_ago 
 FROM testDB
 
-
-
+/*
+Occasionally, you will end up with a dataset that has some nulls that you’d prefer to contain actual values. 
+This happens frequently in numerical data (displaying nulls as 0 is often preferable), 
+and when performing outer joins that result in some unmatched rows. 
+In cases like this, you can use COALESCE to replace the null values:
+*/
+SELECT
+	case_id,
+	description,
+	COALESCE(description, 'no description')
+FROM testDB
+ORDER BY case_id
 
 
 
