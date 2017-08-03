@@ -443,4 +443,5 @@ ORDER BY 1, 2
 
 /*
 The WINDOW clause, if included, should always come after the WHERE clause.
+
 */
