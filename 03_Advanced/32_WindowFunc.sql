@@ -335,10 +335,112 @@ Then for the first j buckets, they will contain (m + 1) elements.
 And for the last (k - j) buckets, thay will contain (m) elements.
 */
 
+/*
+LAG and LEAD
+
+It can often be useful to compare rows to preceding or following rows, 
+especially if you’ve got the data in an order that makes sense. 
+You can use LAG or LEAD to create columns that pull values from other 
+rows—all you need to do is enter which column to pull from and how many 
+rows away you’d like to do the pull. 
+LAG pulls from previous rows and LEAD pulls from following rows:
+*/
+SELECT 
+	start_terminal,
+    duration_seconds,
+    LAG(duration_seconds, 1) OVER
+    (PARTITION BY start_terminal ORDER BY duration_seconds) AS lag,
+    LEAD(duration_seconds, 1) OVER
+    (PARTITION BY start_terminal ORDER BY duration_seconds) AS lead
+FROM testDB
+WHERE start_time < '2012-01-08'
+ORDER BY start_terminal, duration_seconds
+/*
+start_terminal    duration_seconds   lag      lead
+31000	          74		                  277
+31000	          277	             74	      291
+31000	          291	             277	  348
+31000	          348	             291	  387
+31000	          387	             348	  393
+... ...
+31000	          2661	             1422	  3340
+31000	          3340	             2661	
+31001	          5		                      47
+31001	          47	             5	      120
+31001	          120	             47	      138
+31001	          138	             120	  138
+... ...
+31001	          3598	             2876	  3624
+31001	          3624	             3598	
+31002	          70		                  71
+31002	          71	             70	      86
+... ...
+... ...
+*/
+SELECT 
+	start_terminal,
+    duration_seconds,
+    duration_seconds - LAG(duration_seconds, 1) OVER
+    (PARTITION BY start_terminal ORDER BY duration_seconds) AS difference
+FROM testDB
+WHERE start_time < '2012-01-08'
+ORDER BY start_terminal, duration_seconds
+
+/*
+start_terminal    duration_seconds   difference      
+31000	          74		                  
+31000	          277	             203	      
+31000	          291	             14	  
+31000	          348	             57
+... ...
+31000	          2661	             1293	  
+31000	          3340	             679	
+31001	          5		                      
+31001	          47	             42	     
+... ...
+... ...	
+
+
+The first row of the difference column is null because there is no previous row from which to pull. 
+Similarly, using LEAD will create nulls at the end of the dataset. 
+If you’d like to make the results a bit cleaner, 
+you can wrap it in an outer query to remove nulls: 
+*/
+SELECT sub.*
+FROM (
+	SELECT 
+		start_terminal,
+	    duration_seconds,
+	    duration_seconds - LAG(duration_seconds, 1) OVER
+	    (PARTITION BY start_terminal ORDER BY duration_seconds) AS difference
+	FROM testDB
+	WHERE start_time < '2012-01-08'
+	ORDER BY start_terminal, duration_seconds
+) sub
+WHERE sub.difference IS NOT NULL
 
 
 
+-----------------------------------------------------------------------------------------
+/*
+Defining a window alias
 
+If you’re planning to write several window functions in to the same query, 
+using the same window, you can create an alias. Take the NTILE example above:
+*/
 
+SELECT 
+	start_terminal,
+	duration_seconds,
+	NTILE(4) OVER ntile_window AS quartile,
+	NTILE(5) OVER ntile_window AS quintile,
+	NTILE(100) OVER ntile_window AS percentile
+FROM testDB
+WHERE start_time < '2012-01-08'
+WINDOW ntile_window AS
+	(PARTITION BY start_terminal ORDER BY duration_seconds)
+ORDER BY 1, 2
 
-
+/*
+The WINDOW clause, if included, should always come after the WHERE clause.
+*/
