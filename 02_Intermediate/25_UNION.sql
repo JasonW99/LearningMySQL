@@ -57,3 +57,8 @@ SELECT
 FROM testDB_user_part2 user2
 LEFT JOIN testDB_history history
 ON history.user_id = user2.id
+
+/*
+************* 1. UNION removes duplicate rows.
+************* 2. UNION ALL does not remove duplicate rows.
+*/

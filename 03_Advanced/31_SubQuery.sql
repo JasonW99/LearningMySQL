@@ -115,6 +115,23 @@ We also used COALESCE to display months when the seller subquery didn’t have m
 (presumably no seller occurred in those months). 
 */
 
+SELECT 
+	user.user_id,
+	COUNT(event.*) AS num_of_event
+FROM testDB_user user
+JOIN 
+	(SELECT * FROM testDB_event_part1
+		
+		UNION ALL 
+
+	SELECT * FROM testDB_event_part2
+	) event
+ON event.user_id = user.user_id
+AND user.status = 'activate' 
+GROUP BY 1
+ORDER BY 2 DESC
+
+-------------------------------------------------------------------------------------------
 
 
 
