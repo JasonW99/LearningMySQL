@@ -19,6 +19,8 @@ Panda Express    31 - 45      79
 Panda Express    46+          225
 ... ...
 ... ...
+
+Let's call this table Result_1
 */
 
 SELECT 
@@ -49,3 +51,71 @@ Panda Express      47                      164                 79              2
 
 */
 
+/*
+let's call the above table Result_2
+if we want to transform Result_2 into Result_1, then we can perform the following
+*/
+
+-- STEP 1. create a column containing the age group
+SELECT age_group
+FROM (VALUES ('under 18'), ('18 - 30'), ('31 - 45'), ('46+')) v(age_group)
+/*
+under 18     
+18 - 30
+31 - 45 
+46+ 
+*/
+
+-- STEP 2. CROSS JOIN the above column with Result_2
+-- a M rows table 'CROSS JOIN' a N rows table will return a MxN rows table
+SELELT 
+	age.*,
+	visit.*
+FROM 
+	(
+	SELECT age_group FROM (VALUES ('under 18'), ('18 - 30'), ('31 - 45'), ('46+')) v(age_group) age
+    CROSS JOIN Result_2 visit
+
+/*
+age_group      restaurant         under_18_visit          18_30_visit         31_45_visit     46_above_visit      total_visit_times
+under 18       Pizza Hut          103                     200                 90              148                 541
+18 - 30        Pizza Hut          103                     200                 90              148                 541
+31 - 45        Pizza Hut          103                     200                 90              148                 541
+46+            Pizza Hut          103                     200                 90              148                 541
+under 18       Panda Express      47                      164                 79              225                 515
+18 - 30        Panda Express      47                      164                 79              225                 515
+31 - 45        Panda Express      47                      164                 79              225                 515
+46+            Panda Express      47                      164                 79              225                 515
+... ...
+... ...
+*/
+
+-- STEP 3. filtering the result
+SELECT 
+	age_group,
+	restaurant,
+	CASE age_group
+		WHEN 'under 18' THEN under_18_visit
+		WHEN '18 - 30' THEN 18_30_visit
+		WHEN '31 - 45' THEN 31_45_visit
+		WHEN '46+' THEN 46_above_visit
+		ELSE NULL END
+		AS visit_times
+FROM 
+	Result_2 visit
+	CROSS JOIN 
+	(SELECT * FROM (VALUES ('under 18'), ('18 - 30'), ('31 - 45'), ('46+')) v(age_group)) age
+/*
+age_group      restaurant         visit_times      
+under 18       Pizza Hut          103                                  
+18 - 30        Pizza Hut          200                          
+31 - 45        Pizza Hut          90             
+46+            Pizza Hut          148            
+under 18       Panda Express      47                                  
+18 - 30        Panda Express      164                                
+31 - 45        Panda Express      79                         
+46+            Panda Express      225             
+... ...
+... ...
+
+*/
