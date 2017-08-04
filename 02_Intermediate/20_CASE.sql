@@ -127,9 +127,3 @@ SELECT
     COUNT(1) AS players
 FROM benn.college_football_players
 GROUP BY 1
-
-
-
-
-
-
