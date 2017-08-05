@@ -2,7 +2,7 @@
 Table1 : Users (test_user)
 this table includes one row per user, with despriptive information about that user's account
 user_id    : A unique ID per user. can be joined to user_id in either of the tables
-created_at : the time the sser was created (first signed up)   
+created_at : the time the user was created (first signed up)   
 state      : the state of the user
 actived_at : the time the user was actived, if they are active
 company_id : the ID of the user's company
@@ -121,6 +121,34 @@ Search crawler changes:        For a website that receives a lot of traffic, cha
 
 
 */
+
+-- 1. let's firstly check if the pattern of actived user changed
+SELECT
+	DATE_TRUNC('day', created_at),
+	COUNT(1) AS all_user,
+	COUNT(CASE actived_at IS NOT NULL THEN u.user_id ELSE NULL END) AS actived_user
+FROM test_user u
+WHERE created_at >= '2014-06-01' AND created_at < '2014-09-01'
+GROUP BY 1
+ORDER BY 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
