@@ -88,17 +88,17 @@ SELECT      -- step7. count each kind of actions within the sessions
 	DATE.TRUNC('week', z.session_start) as week,
 	COUNT(*) AS sessions,
 	-- COUNT(CASE z.autocompletes != 0 THEN z.session ELSE NULL END) / COUNT(*)::FLOAT AS with_autocompletes_percentage,
-	COUNT(CASE z.autocompletes != 0 THEN z.session ELSE NULL END) AS with_autocompletes,
+	COUNT(CASE WHEN z.autocompletes != 0 THEN z.session ELSE NULL END) AS with_autocompletes,
 	-- COUNT(CASE z.runs != 0 THEN z.session ELSE NULL END) / COUNT(*)::FLOAT AS with_runs_percentage,
-	COUNT(CASE z.runs != 0 THEN z.session ELSE NULL END) AS with_runs
+	COUNT(CASE WHEN z.runs != 0 THEN z.session ELSE NULL END) AS with_runs
 FROM (
 	SELECT      -- step6. count each kind of actions within the sessions
 		x.session,
 		x.session_start,
 		x.user_id,
-		COUNT(CASE x.event_name = 'search_autocomplete' THEN x.user_id ELSE NULL END) AS autocompletes,
-		COUNT(CASE x.event_name = 'search_run' THEN x.user_id ELSE NULL END) AS runs,
-		COUNT(CASE x.event_name LIKE 'search_click_%' THEN x.user_id ELSE NULL END) AS clicks
+		COUNT(CASE WHEN x.event_name = 'search_autocomplete' THEN x.user_id ELSE NULL END) AS autocompletes,
+		COUNT(CASE WHEN x.event_name = 'search_run' THEN x.user_id ELSE NULL END) AS runs,
+		COUNT(CASE WHEN x.event_name LIKE 'search_click_%' THEN x.user_id ELSE NULL END) AS clicks
 	FROM (
 		SELECT      -- step5. clean the engagement & session information table
 			e.*,
@@ -155,4 +155,130 @@ In other words, it’s a feature that people use and is worth some attention.
 */
 
 
+/*
+2. As you can see below, autocomplete is typically used once or twice per session
 
+*/
+SELECT 
+	autocompletes,
+	COUNT(*) AS sessions
+FROM x
+WHERE autocompletes > 0
+GROUP BY 1
+ORDER BY 1
+/*
+When users do run full searches, they typically run multiple searches in a single session. 
+Considering full search is a more rarely used feature, this suggests that either the search results are not very good or that there is a very 
+small group of users who like search and use it all the time:
+
+*/
+SELECT 
+	runs,
+	COUNT(*) AS sessions
+FROM x
+WHERE runs > 0
+GROUP BY 1
+ORDER BY 1
+
+/*
+3. Digging in a bit deeper, it’s clear that search isn’t performing particularly well. In sessions during which users do search, they almost never click any of the results:
+
+*/
+SELECT 
+	clicks,
+	COUNT(*) AS sessions
+FROM x
+WHERE runs > 0
+GROUP BY 1
+ORDER BY 1
+/*
+Furthermore, more searches in a given session do not lead to many more clicks, on average:
+
+*/
+SELECT 
+	runs,
+	AVG(clicks)::FLOAT AS average_clicks
+FROM x
+WHERE runs > 0
+GROUP BY 1
+ORDER BY 1
+
+/*
+4. When users do click on search results, their clicks are fairly evenly distributed across the result order, 
+suggesting the ordering is not very good. If search were performing well, this would be heavily weighted toward the top two or three results:
+
+*/
+SELECT
+	TRIM('search_click_result' FROM e.event_name)::INT AS search_result,
+	COUNT(*) AS clicks
+FROM test_events e
+WHERE event_name LIKE 'search_click_%'
+GROUP BY 1
+ORDER BY 1
+
+/*
+Finally, users who run full searches rarely do so again within the following month:
+
+*/
+SELECT     -- step7. count the number of users within each search group
+	searches,
+	COUNT(*) AS users
+FROM (
+	SELECT     -- step6. check the number of searches by the user within the following month
+		y.user_id,
+		COUNT(*) AS searches
+	FROM (
+		SELECT    -- step5. summarize the session info and first search info
+			x.session,
+			x.session_start,
+			x.user_id,
+			x.first_search,
+			COUNT(CASE WHEN event_name = 'search_run' THEN x.user_id ELSE NULL END) as runs
+		FROM (
+			SELECT      -- step4. select relevant information including session info and first search info
+				e.*,
+				first.first_search,
+				session.sessin,
+				session.session_start
+			FROM
+				-- step3. connect the session information with the search_run information
+				test_events e      -- step2. connect the first time search information to the search_run information (in the event table)
+				JOIN (
+					SELECT      -- step1. select the user first time use search 
+						user_id,
+						MIN(occurred_at) AS first_search
+					FROM testDB
+					WHERE event_name = 'search_run' 
+					GROUP BY 1      -- step1 end
+				) first
+				ON e.user_id = first.user_id AND first.first_search <= '2014-08-01'      -- step2 end
+				LEFT JOIN session 
+				ON session.user_id = e.user_id 
+				AND e.occurred_at >= session.session_start
+				AND e.occurred_at <= session.session_end
+				AND session.session_start <= first.first_search + INTERVAL '30 DAY'
+				-- step3 end
+			WHERE e.event_type = 'engagement'
+			-- step4 end
+		) x
+		GROUP 1, 2, 3, 4      -- step5 end
+	) y
+	GROUP BY 1      -- step6 end
+)z
+GROUP BY 1      -- step7 end
+
+/*
+doing a similar table for event_name = 'autocomplete', we can find that users who use 
+the autocomplete feature, by comparison, continue to use it at a higher rate:
+
+*/
+
+
+/*
+This all suggests that autocomplete is performing reasonably well, while search runs are not. 
+The most obvious place to focus is on the ordering of search results. It’s important to consider that users likely run full 
+searches when autocomplete does not provide the things they are looking for, so maybe changing the search ranking algorithm to provide 
+results that are a bit different from the autocomplete results would help. 
+Of course, there are many ways to approach the problem—the important thing is that the focus should be on improving full search results.
+
+*/
