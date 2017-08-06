@@ -30,3 +30,11 @@ FROM testDB
 WHERE year >= 2000 AND month_name != 'January'
 
 
+
+
+
+
+/*
+NOTE THAT::!!!!!!!!!!!!!!!!!!!!!!!
+the SELECT clause excute AFTER the WHERE clause!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+*/

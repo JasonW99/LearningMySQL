@@ -140,3 +140,19 @@ LEFT JOIN testDB_history history
 ON history.user_id = user.id
 GROUP BY 1
 ORDER BY 2 DESC
+
+
+
+
+
+
+
+
+
+
+/*
+NOTE THAT::!!!!!!!!!!!!!!!!!!!!!!!
+the WHERE clause excute AFTER the JOIN clause!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+AND 
+the SELECT clause excute AFTER the WHERE clause!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+*/
