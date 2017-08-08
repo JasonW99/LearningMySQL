@@ -115,7 +115,7 @@ FROM (
 	SELECT      -- Step4. move the useful information to single columns which can be used for further calculation
 		b.*,
 		MAX(CASE WHEN b.experiment_group = 'control_group' THEN b.user ELSE NULL END) OVER() AS control_users,
-		MAX(CASE WHEN b.experiment_group = 'control_group' THEN b.average ELSE NULL END) OVER() AS control_average,
+		MAX(CASE WHEN b.experiment_group = 'control_group' THEN b.average ELSE NULL END) OVER() AS control_average,    -- pick up one specific value and copy it to entire column
 		MAX(CASE WHEN b.experiment_group = 'control_group' THEN b.total ELSE NULL END) OVER() AS control_total, 
 		MAX(CASE WHEN b.experiment_group = 'control_group' THEN b.variance ELSE NULL END) OVER() AS control_variance,
 		MAX(CASE WHEN b.experiment_group = 'control_group' THEN b.stdev ELSE NULL END) OVER() AS control_stdev,
@@ -142,7 +142,7 @@ FROM (
 					SELECT 
 						user_id,
 						experiment,
-						experiment_group,
+						experiment_group -- wo you yi ge xiao guai guai, ta de ming zi jiao xiao bu guai...
 						occurred_at
 					FROM test_experiment
 					WHERE experiment = 'publisher_update'
@@ -166,17 +166,150 @@ ON nd.score = ABS(ROUND((c.average - c.control_average) / SQRT(c.variance / c.us
 -- Step5 end
 
 
+--------------------------------------------------------------------------------------------------------------------------------------
+/*
+A/B tests can alter user behavior in a lot of ways, and sometimes these changes are unexpected. 
+Before digging around test data, it’s important to hypothesize how a feature might change user behavior, and why. 
+If you identify changes in the data first, it can be very easy to rationalize why these changes should be obvious, 
+even if you never would have have thought of them before the experiment.
+
+It’s similarly important to develop hypotheses for explaining test results before looking further into the data. 
+These hypotheses focus your thinking, provide specific conclusions to validate, and keep you from always concluding that the 
+first potential answer you find is the right one.
+
+For this problem, a number of factors could explain the anomalous test. Here are a few examples:
 
 
+1. This metric is incorrect or irrelevant: Posting rates may not be the correct metric for measuring overall success. 
+   It describes how Yammer’s customers use the tool, but not necessarily if they’re getting value out of it. For example, while a giant “Post New Message” 
+   button would probably increase posting rates, it’s likely not a great feature for Yammer. You may want to make sure the test results hold up for other metrics as well.
+2. The test was calculated incorrectly: A/B tests are statistical tests. People calculate results using different methods—sometimes that method is incorrect, 
+   and sometimes the arithmetic is done poorly.
+3. The users were treated incorrectly: Users are supposed to be assigned to test treatments randomly, but sometimes bugs interfere with this process. 
+   If users are treated incorrectly, the experiment may not actually be random.
+4. There is a confounding factor or interaction effect: These are the trickiest to identify. Experiment treatments could be affecting the product in some other 
+   way—for example, it could make some other feature harder to find or create incongruous mobile and desktop experiences. These changes might affect user behavior 
+   in unexpected ways, or amplify changes beyond what you would typically expect.
+*/
 
 
+/*
+in the following, let's vlidate the results
+
+*/
+
+/*
+1. the number of message set shouldn't be the only determinant of this test's success, so dig into a few other metrics to make sure that their outcomes
+   were also positive. in particula, we're interested in metrics that determine id a user is getting value out of Yammer. (Yammer typically user login frequency
+   as a core metric.)
+*/
+/*
+   first, the average number of logins per user is up. this suggests that not only are users sending more messages, but they're also signing in to Yammer more.
+*/
+
+-- in above the query, change the [e.event_name = 'send_message'] to [e.event_name = 'login'] in the step2
+COUNT(CASE WHEN e.event_name = 'send_message' THEN e.user_id ELSE NULL END) AS metric
+==> COUNT(CASE WHEN e.event_name = 'login' THEN e.user_id ELSE NULL END) AS metric
+/*
+   experiment          experiment_group    users      total_treated_users       treatment_percent     total      average    rate_difference     rate_lift    stdev       t_stat    p_value
+1. publisher_update	   control_group	   1746	      2595	                    0.6728	              5789	     3.3156	    0.0000	            0.0000	     2.5777	     0.0000	   1
+2. publisher_update	   test_group	       849	      2595	                    0.3272	              3481	     4.1001	    0.7845	            0.2366	     3.3110	     6.0676	   0
+*/
+/*
+second, users are logging in on more days as well(days engaged the distinct number of days customers use Yammer). if this metric were up, it might imply
+that people were logging in and logging out in quick succession, which could mean the new feature introduce a login bug. but both metrics are up, so it
+appears that the problem with this tests isn't cherry-picking metrics-things look good across the board.
+*/
+-- change the COUNT clause in the step2 
+COUNT(CASE WHEN e.event_name = 'send_message' THEN e.user_id ELSE NULL END) AS metric
+==> COUNT(DISTINCT DATE_TRUNC('day', e.occurred_at)) AS metric
+
+/*
+   experiment          experiment_group    users      total_treated_users       treatment_percent     total      average    rate_difference     rate_lift    stdev       t_stat    p_value
+1. publisher_update	   control_group	   1746	      2595	                    0.6728	              5297	     3.0338	    0.0000	            0.0000	     2.1520	     0.0000	   1
+2. publisher_update	   test_group	       849	      2595	                    0.3272	              3059	     3.6031	    0.5693	            0.1876	     2.6994	     5.3707	   0
+*/
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+/*
+2. Reasonable people can debate which mathematical methods are best for an A/B test, and arguments can be made for some changes 
+   (1-tailed vs. 2-tailed tests, required sample sizes, assumptions about sample distributions, etc.). Nontheless, these other 
+   methods don’t materially affect the test results here.
+
+   the test, however, does suffer from a methodological error. the test lumps new users and existing users into the same group, and measures the number
+   of messages they post during the testing window. this means that a user who signed up in January would be considered the same way as a user who signed
+   up a day before the test ended, even though the second user has much less time to post messages. it would make more sense to consider new and existing
+   users separately. not only does this make comparing magnitudes more appropriate, be it also lets you test for novelty effects. 
+
+   users familier with Yammer might try out a new feature just because it's new, temporarily boosting their overall engagement. for new users, he feature
+   isn't "new", so they're much less likely to use it just because it's different.
 
 
+*/
 
+-------------------------------------------------------------------------------------------------------------------------------------------
+/*
+3. investigating user treatments(or splitting users out into new and existing cohorts) reveals the heart of the problem
+   -----all new users were treated in the control group.
 
+*/
 
+SELECT
+	DATE_TRUNC('week', u.actived_at) AS week,
+	COUNT(CASE WHEN exp.experiment_group = 'control_group' THEN u.user_id ELSE NULL END) AS control_users,
+	COUNT(CASE WHEN exp.experiment_group = 'test_group' THEN u.user_id ELSE NULL END) AS test_users
+FROM test_user u
+JOIN test_experiment exp 
+ON u.user_id = exp.user_id
 
+/*
+This creates a number of problems for the test. Because these users have less time to post than existing users, 
+all else equal, they would be expected to post less than existing users given their shorter exposure to Yammer. 
+Including all of them in the control group lowers that group’s overall posting rate. Because of this error, 
+you may want to analyze the test in a way that ignores new users. 
+As you can see from below, when only looking at posts from old users, the test results narrow considerably.
 
+we can add one line into the original Step1
+*/
 
+(-- Step1. constuct the source table containing information from user, event, and experiment.
+	SELECT 
+		user_id,
+		experiment,
+		experiment_group -- wo you yi ge xiao guai guai, ta de ming zi jiao xiao bu guai...
+		occurred_at
+	FROM test_experiment
+	WHERE experiment = 'publisher_update'
+) exp
+JOIN test_user u
+ON exp.user_id = u.user_id
+AND u.actived_at < '2014-06-01'
+JOIN test_event e 
+ON exp.user_id = e.user_id 
+AND e.occurred_at >= exp.occurred_at 
+AND e.occurred_at < '2014-07-01'
+AND e.event_type = 'engagement' 
+-- Step1 end
 
+-------------------------------------------------------------------------------------------------------------------------------------------
+/*
+4. Though we’ve identified one problem, it’s usually a good idea to explore other possibilities as well. 
+   There can be multiple problems, and frequently, these problems are related. When recommending what to next 
+   to product teams, it’s important to have a complete understanding of what happened during a test—both the 
+   expected results and unexpected ones. 
 
+   Interaction effects can appear in many ways, so it’s not possible to list all of the possibilities here. 
+   However, a few cohorts—new vs. existing users, usage by device, usage by user type (i.e., content producers 
+   vs. readers)—are usually good to check. 
+
+   The graph below show that the test results for just messages sent on phones. If you click through the embed 
+   link, you can update the report to see results by tablet and desktop devices as well.
+*/	
+
+/*
+Follow through
+
+Overall, the test results are still strong. But given the above result, we should validate that change across 
+different cohorts and fix the logging error that treated all new users in one group.
+
+*/
